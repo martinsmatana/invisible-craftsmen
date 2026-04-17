@@ -1,0 +1,1636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Invisible Craftsmen — Smatana Studio</title>
+<meta name="robots" content="noindex, nofollow">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<!-- GSAP + Lenis + Three.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollToPlugin.min.js"></script>
+<script src="https://unpkg.com/lenis@1.1.14/dist/lenis.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<style>
+  :root {
+    --bg-dark: #0a0a0f;
+    --bg-card: #12121a;
+    --accent: #65a30d;
+    --accent2: #d97706;
+    --accent3: #fbbf24;
+    --text-primary: #f0ece2;
+    --text-secondary: #a09d8f;
+    --text-muted: #5e5a4e;
+    --gradient-1: linear-gradient(135deg, #4d7c0f 0%, #d97706 50%, #fbbf24 100%);
+    --gradient-2: linear-gradient(135deg, #0a0a0f 0%, #1c1a12 100%);
+    --gradient-3: linear-gradient(135deg, #65a30d 0%, #fbbf24 100%);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { overflow-x: hidden; }
+  html.lenis, html.lenis body { height: auto; }
+  .lenis.lenis-smooth { scroll-behavior: auto !important; }
+  .lenis.lenis-stopped { overflow: hidden; }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg-dark);
+    color: var(--text-primary);
+    -webkit-font-smoothing: antialiased;
+  }
+  /* Custom cursor only on real pointing devices, never on touch */
+  @media (hover: hover) and (pointer: fine) {
+    body, a, button, .cta-badge, .nav-dots a, .img-wrap, .tilt-card, .compliance-card { cursor: none; }
+  }
+
+  /* ── CUSTOM CURSOR (above lightbox) ── */
+  .cursor-dot, .cursor-ring, .cursor-label {
+    position: fixed; top: 0; left: 0; pointer-events: none;
+    transform: translate3d(-50%,-50%,0); will-change: transform;
+  }
+  .cursor-dot   { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); z-index: 12002; mix-blend-mode: difference; }
+  .cursor-ring  { width: 38px; height: 38px; border: 1.5px solid var(--accent); border-radius: 50%; z-index: 12001; transition: width 0.35s cubic-bezier(0.16,1,0.3,1), height 0.35s cubic-bezier(0.16,1,0.3,1), background-color 0.35s, border-color 0.35s; }
+  .cursor-ring.is-hover-image { width: 96px; height: 96px; background: rgba(101,163,13,0.14); border-color: var(--accent2); }
+  .cursor-ring.is-hover-link  { width: 56px; height: 56px; background: rgba(251,191,36,0.14); border-color: var(--accent3); }
+  .cursor-label { z-index: 12003; font-family: 'Space Grotesk', sans-serif; font-size: 0.65rem; font-weight: 700; letter-spacing: 0.25em; text-transform: uppercase; color: #fff; opacity: 0; transition: opacity 0.3s; mix-blend-mode: difference; white-space: nowrap; }
+  .cursor-label.show { opacity: 1; }
+  @media (hover: none), (pointer: coarse) { .cursor-dot, .cursor-ring, .cursor-label { display: none; } body { cursor: auto !important; } }
+
+  /* ── WEBGL CANVAS (ambient shader background) ── */
+  #webgl-bg { position: fixed; inset: 0; z-index: -3; pointer-events: none; }
+  /* Fallback gradient behind the canvas (if WebGL fails) */
+  .bg-gradient-animated { position: fixed; inset: 0; z-index: -4; background: var(--bg-dark); }
+  .bg-gradient-animated::before {
+    content: ''; position: absolute; inset: -50%;
+    background:
+      radial-gradient(ellipse at 20% 50%, rgba(101,163,13,0.06) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 20%, rgba(251,191,36,0.04) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 80%, rgba(217,119,6,0.03) 0%, transparent 50%);
+    animation: gradientDrift 20s ease-in-out infinite;
+  }
+  @keyframes gradientDrift {
+    0%, 100% { transform: translate(0,0) rotate(0deg); }
+    50% { transform: translate(-1%,2%) rotate(-0.5deg); }
+  }
+
+  /* ── GRAIN OVERLAY ── */
+  .grain {
+    position: fixed; inset: -50%; width: 200%; height: 200%;
+    pointer-events: none; z-index: 9996; opacity: 0.06;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.6 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+    animation: grainShift 8s steps(6) infinite;
+  }
+  @keyframes grainShift {
+    0%   { transform: translate(0,0); }
+    16%  { transform: translate(-2%,3%); }
+    33%  { transform: translate(4%,-1%); }
+    50%  { transform: translate(-3%,-2%); }
+    66%  { transform: translate(2%,4%); }
+    83%  { transform: translate(-1%,-3%); }
+    100% { transform: translate(0,0); }
+  }
+
+  /* ── TOP-LEFT: STUDIO BRAND + CONFIDENTIAL LABEL ── */
+  .top-brand {
+    position: fixed; top: 1.25rem; left: 1.5rem; z-index: 200;
+    display: flex; flex-direction: column; gap: 0.35rem;
+    pointer-events: none;
+    mix-blend-mode: difference;
+  }
+  .top-brand .brand-name {
+    font-family: 'Space Grotesk', sans-serif; font-size: 0.88rem; font-weight: 600;
+    letter-spacing: -0.01em; color: #f0f0f5; line-height: 1;
+  }
+  .top-brand .brand-name .dot { color: var(--accent); }
+  .top-brand .confidential {
+    display: flex; align-items: center; gap: 0.45rem;
+    font-family: 'Space Grotesk', sans-serif; font-size: 0.58rem; font-weight: 500;
+    letter-spacing: 0.22em; text-transform: uppercase; color: rgba(240,240,245,0.55);
+  }
+  .top-brand .confidential::before {
+    content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+    animation: blinkDot 2.2s ease-in-out infinite;
+  }
+  @keyframes blinkDot { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+  /* ── PROGRESS RING (top-right) ── */
+  .progress-ring { position: fixed; top: 1.25rem; right: 1.25rem; width: 56px; height: 56px; z-index: 200; pointer-events: none; }
+  .progress-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .progress-ring .track { fill: none; stroke: rgba(255,255,255,0.08); stroke-width: 2; }
+  .progress-ring .bar   { fill: none; stroke: url(#pgrad); stroke-width: 2.5; stroke-linecap: round; stroke-dasharray: 163.36; stroke-dashoffset: 163.36; filter: drop-shadow(0 0 4px rgba(101,163,13,0.6)); }
+  .progress-ring-counter { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: 'Space Grotesk', sans-serif; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-primary); }
+  .progress-ring-counter .sep, .progress-ring-counter .total { color: var(--text-muted); font-weight: 500; }
+
+  /* ── SLIDES ── */
+  .slide { width: 100vw; min-height: 100vh; display: flex; position: relative; overflow: hidden; }
+
+  /* ── NAV DOTS ── */
+  .nav-dots { position: fixed; right: 1.5rem; top: 50%; transform: translateY(-50%); z-index: 100; display: flex; flex-direction: column; gap: 0.75rem; }
+  .nav-dots a {
+    position: relative; width: 10px; height: 10px; border-radius: 50%;
+    background: var(--text-muted);
+    transition: background 0.35s, box-shadow 0.35s, transform 0.35s cubic-bezier(0.16,1,0.3,1);
+    display: block;
+  }
+  .nav-dots a::after {
+    content: attr(data-label); position: absolute; right: 22px; top: 50%; transform: translateY(-50%);
+    font-family: 'Space Grotesk', sans-serif; font-size: 0.65rem; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--text-secondary); white-space: nowrap;
+    opacity: 0; pointer-events: none; transition: opacity 0.3s;
+  }
+  .nav-dots a:hover::after { opacity: 1; }
+  .nav-dots a:hover, .nav-dots a.active { background: var(--accent); box-shadow: 0 0 12px rgba(101,163,13,0.6); }
+  .nav-dots a.active { transform: scale(1.5); }
+  @media (max-width: 900px) { .nav-dots { display: none; } }
+
+  /* ── 3D TILT + GLOW ── */
+  .tilt-card { transform-style: preserve-3d; transition: transform 0.25s ease-out, box-shadow 0.3s ease; }
+  .tilt-card:hover { box-shadow: 0 20px 60px rgba(101,163,13,0.18), 0 0 40px rgba(101,163,13,0.08); }
+  .glow-card { position: relative; overflow: hidden; }
+  .glow-card::before {
+    content: ''; position: absolute; top: var(--mouse-y,50%); left: var(--mouse-x,50%);
+    width: 320px; height: 320px; background: radial-gradient(circle, rgba(101,163,13,0.18) 0%, transparent 70%);
+    transform: translate(-50%,-50%); opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 0;
+  }
+  .glow-card:hover::before { opacity: 1; }
+  .glow-card > * { position: relative; z-index: 1; }
+
+  /* ── IMAGE SYSTEM (aspect-ratio aware) ── */
+  .img-wrap {
+    position: relative; display: block; overflow: hidden;
+    background: #0f0f15;
+    transition: transform 0.4s cubic-bezier(0.16,1,0.3,1);
+  }
+  .img-wrap img {
+    display: block; width: 100%; height: 100%; object-fit: cover;
+    filter: saturate(1.08) contrast(1.04);
+    transition: filter 0.4s;
+    will-change: transform;
+  }
+  .img-wrap:hover img { filter: saturate(1.15) contrast(1.06) brightness(1.04); }
+  .img-wrap .img-caption { position: absolute; left: 1rem; bottom: 1rem; font-family: 'Space Grotesk'; font-size: 0.62rem; letter-spacing: 0.25em; text-transform: uppercase; color: rgba(255,255,255,0.55); z-index: 2; opacity: 0; transition: opacity 0.4s; pointer-events: none; }
+  .img-wrap:hover .img-caption { opacity: 1; }
+
+  /* Variant 1 — FULL-BLEED */
+  .img-full-bleed { width: 100%; height: 100%; }
+  .img-full-bleed::after {
+    content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 1;
+    background: linear-gradient(to left, transparent 55%, rgba(10,10,15,0.85) 100%);
+  }
+  .col-img-right .img-full-bleed::after { background: linear-gradient(to left, transparent 55%, rgba(10,10,15,0.85) 100%); }
+  .col-img-left  .img-full-bleed::after { background: linear-gradient(to right, transparent 55%, rgba(10,10,15,0.85) 100%); }
+
+  /* Variant 2 — EDGE-BLEED */
+  .img-edge-bleed { width: 100%; height: 100%; }
+  .img-edge-bleed::after {
+    content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 1;
+    background: linear-gradient(to left, transparent 0%, transparent 40%, rgba(10,10,15,0.95) 100%);
+  }
+
+  /* Variant 3 — FRAMELESS MOSAIC */
+  .mosaic { display: grid; gap: 2px; background: rgba(255,255,255,0.04); }
+  .mosaic .img-wrap { background: #0a0a0f; }
+  .mosaic .img-wrap img { transition: transform 1.4s cubic-bezier(0.16,1,0.3,1), filter 0.45s; }
+  .mosaic:hover .img-wrap img { filter: saturate(0.6) brightness(0.55); }
+  .mosaic .img-wrap:hover img { filter: saturate(1.15) contrast(1.08) brightness(1); transform: scale(1.04); }
+  .mosaic-3 { grid-template-columns: repeat(3, 1fr); height: 60vh; }
+  .mosaic-2 { grid-template-columns: repeat(2, 1fr); height: 70vh; }
+
+  /* Variant 4 — COLLAGE */
+  .collage { position: relative; width: 100%; height: 78vh; perspective: 1200px; }
+  .collage .img-wrap {
+    position: absolute; border-radius: 6px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.04);
+    transition: transform 0.5s cubic-bezier(0.16,1,0.3,1), box-shadow 0.5s;
+  }
+  .collage .img-wrap:hover {
+    transform: translate3d(0,0,40px) scale(1.04) !important;
+    box-shadow: 0 30px 80px rgba(101,163,13,0.25), 0 0 0 1px rgba(101,163,13,0.2);
+    z-index: 20;
+  }
+
+  /* Variant 5 — MASKED SHAPE (used in About section) */
+  .img-masked {
+    clip-path: polygon(8% 0, 100% 0, 92% 100%, 0 100%);
+    width: 100%; height: 100%;
+  }
+
+  /* Variant 6 — MARQUEE */
+  .marquee-v {
+    position: relative; height: 70vh; overflow: hidden;
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 15%, #000 85%, transparent 100%);
+            mask-image: linear-gradient(to bottom, transparent 0%, #000 15%, #000 85%, transparent 100%);
+  }
+  .marquee-v-track { display: flex; flex-direction: column; gap: 1rem; animation: marqueeV 38s linear infinite; }
+  .marquee-v-track .img-wrap { border-radius: 8px; flex-shrink: 0; height: 32vh; }
+  @keyframes marqueeV { 0% { transform: translateY(0); } 100% { transform: translateY(-50%); } }
+
+  /* ── SHARED TEXT ── */
+  .section-label { font-family: 'Space Grotesk', sans-serif; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.3em; text-transform: uppercase; color: var(--accent); margin-bottom: 1.5rem; }
+  .section-title { font-family: 'Space Grotesk', sans-serif; font-size: clamp(2rem,3.5vw,3.2rem); font-weight: 700; line-height: 1.1; letter-spacing: -0.02em; margin-bottom: 1.5rem; }
+  .section-body { font-size: 1rem; line-height: 1.75; color: var(--text-secondary); font-weight: 300; max-width: 600px; }
+  .section-body p + p { margin-top: 1em; }
+
+  /* Split utilities */
+  .split-word { display: inline-block; overflow: hidden; vertical-align: top; }
+  .split-word > span { display: inline-block; will-change: transform,opacity; }
+  .split-char { display: inline-block; will-change: transform,opacity; }
+  .line-mask  { display: inline-block; overflow: hidden; vertical-align: top; line-height: 1.05; max-width: 100%; }
+  .line-mask > .line-inner { display: inline-block; white-space: nowrap; }
+
+  /* ── TWO-COL LAYOUT ── */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; height: 100vh; width: 100%; }
+  .col-text { padding: 6vh 4vw 6vh 8vw; display: flex; flex-direction: column; justify-content: center; position: relative; z-index: 2; }
+  .col-img  { position: relative; overflow: hidden; }
+
+  /* ── SLIDE 1: TITLE ── */
+  .slide-title { background: var(--gradient-2); align-items: center; padding: 0; }
+  .slide-title::before { content: ''; position: absolute; top: -30%; right: -10%; width: 70vw; height: 70vw; background: radial-gradient(circle, rgba(101,163,13,0.15) 0%, transparent 70%); border-radius: 50%; animation: float1 15s ease-in-out infinite; }
+  .slide-title::after { content: ''; position: absolute; bottom: -20%; left: 30%; width: 50vw; height: 50vw; background: radial-gradient(circle, rgba(251,191,36,0.08) 0%, transparent 70%); border-radius: 50%; animation: float2 18s ease-in-out infinite; }
+  @keyframes float1 { 0%, 100% { transform: translate(0,0); } 50% { transform: translate(-3%,5%); } }
+  @keyframes float2 { 0%, 100% { transform: translate(0,0); } 50% { transform: translate(4%,-3%); } }
+  .title-grid { display: grid; grid-template-columns: 1.1fr 1fr; width: 100%; height: 100vh; position: relative; z-index: 1; }
+  .title-text-col { padding: 8vh 4vw 8vh 8vw; display: flex; flex-direction: column; justify-content: center; position: relative; z-index: 2; }
+  .title-img-col  { position: relative; overflow: hidden; }
+  .title-label { font-family: 'Space Grotesk', sans-serif; font-size: 0.85rem; font-weight: 500; letter-spacing: 0.35em; text-transform: uppercase; color: var(--accent2); margin-bottom: 2rem; }
+  .title-main { font-family: 'Space Grotesk', sans-serif; font-size: clamp(3rem,6vw,5.5rem); font-weight: 700; line-height: 1.05; letter-spacing: -0.03em; }
+  .title-main .highlight { background: var(--gradient-1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; background-size: 200% 200%; animation: shimmer 4s ease-in-out infinite; }
+  @keyframes shimmer { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+  .title-sub { font-size: 1.25rem; font-weight: 300; color: var(--text-secondary); margin-top: 2rem; max-width: 90%; line-height: 1.6; }
+  .title-meta { position: absolute; bottom: 5vh; left: 8vw; font-size: 0.8rem; color: var(--text-muted); letter-spacing: 0.15em; font-weight: 500; z-index: 2; }
+  .hero-scroll-hint { position: absolute; bottom: 4vh; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 0.4rem; z-index: 3; }
+  .hero-scroll-hint span { font-family: 'Space Grotesk'; font-size: 0.6rem; letter-spacing: 0.3em; text-transform: uppercase; color: var(--text-muted); }
+  .hero-scroll-hint .line { width: 1px; height: 40px; background: linear-gradient(to bottom, transparent, var(--accent)); animation: scrollHint 2.5s ease-in-out infinite; }
+  @keyframes scrollHint { 0% { transform: scaleY(0); transform-origin: top; } 50% { transform: scaleY(1); transform-origin: top; } 51% { transform-origin: bottom; } 100% { transform: scaleY(0); transform-origin: bottom; } }
+
+  /* ── DIPTYCH ── */
+  .diptych { display: grid; grid-template-columns: 1fr 1fr; gap: 0; height: 65vh; margin-top: 2rem; position: relative; border-radius: 8px; overflow: hidden; }
+  .diptych .img-wrap { height: 100%; }
+  .diptych::after { content: ''; position: absolute; top: 0; left: 50%; width: 1px; height: 100%; background: rgba(255,255,255,0.12); z-index: 2; }
+
+  /* ── SCALE SLIDE ── */
+  .scale-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; align-items: center; margin-top: 2rem; }
+
+  /* ── PINNED HORIZONTAL FORMATS ── */
+  .pinned-formats { height: 100vh; overflow: hidden; padding: 0; }
+  .pinned-formats .h-track { display: flex; width: 500vw; height: 100vh; will-change: transform; }
+  .pinned-formats .h-panel { width: 100vw; height: 100vh; padding: 8vh 8vw 6vh; display: flex; flex-direction: column; justify-content: center; position: relative; }
+  .pinned-formats .h-panel:nth-child(odd)  { background: var(--bg-dark); }
+  .pinned-formats .h-panel:nth-child(even) { background: var(--bg-card); }
+  .pinned-formats .panel-header { display: flex; align-items: baseline; gap: 1rem; margin-bottom: 1.25rem; }
+  .pinned-formats .panel-num { font-family: 'Space Grotesk'; font-size: 0.72rem; letter-spacing: 0.35em; color: var(--accent); font-weight: 600; }
+  .pinned-formats .panel-progress { flex: 1; height: 1px; background: rgba(255,255,255,0.08); position: relative; overflow: hidden; }
+  .pinned-formats .panel-progress::after { content: ''; position: absolute; left: 0; top: 0; height: 100%; width: var(--p, 0%); background: var(--gradient-3); }
+  .pinned-formats .panel-body-wrap { display: grid; grid-template-columns: 1.2fr 1.5fr; gap: 3rem; align-items: center; flex: 1; }
+  .pinned-formats .panel-text { max-width: 520px; }
+  .pinned-formats .mosaic { height: 60vh; border-radius: 4px; overflow: hidden; }
+  @media (max-width: 900px) {
+    .pinned-formats { height: auto; }
+    .pinned-formats .h-track { display: block; width: 100%; height: auto; transform: none !important; }
+    .pinned-formats .h-panel { width: 100%; height: auto; min-height: 100vh; padding: 10vh 6vw 6vh; }
+    .pinned-formats .panel-body-wrap { grid-template-columns: 1fr; }
+    .pinned-formats .mosaic { height: 50vh; grid-template-columns: 1fr !important; }
+  }
+
+  /* ── TARGET ── */
+  .target-layout { display: grid; grid-template-columns: 1fr 1fr; height: 100vh; }
+  .target-list { display: flex; flex-direction: column; gap: 1.2rem; margin-top: 1rem; }
+  .target-item { display: flex; align-items: flex-start; gap: 1rem; }
+  .target-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); margin-top: 0.5rem; flex-shrink: 0; transition: transform 0.3s, box-shadow 0.3s; }
+  .target-item:hover .target-dot { transform: scale(1.8); box-shadow: 0 0 12px rgba(101,163,13,0.5); }
+  .target-item p { font-size: 0.95rem; color: var(--text-secondary); line-height: 1.6; font-weight: 300; }
+
+  /* ── COMPLIANCE (border-gradient on ::after, not ::before) ── */
+  .compliance-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.2rem; margin-top: 2rem; }
+  .compliance-card {
+    position: relative; background: var(--bg-card); border-radius: 1rem; padding: 1.6rem;
+    border: 1px solid rgba(255,255,255,0.06);
+    overflow: hidden;
+    isolation: isolate; /* clean stacking context */
+  }
+  /* Rotating border-ring using ::after so it doesn't collide with .glow-card::before */
+  .compliance-card::after {
+    content: ''; position: absolute; inset: 0; border-radius: inherit;
+    padding: 1.5px;
+    background: conic-gradient(from var(--angle,0deg),
+      transparent 0deg,
+      var(--accent) 40deg,
+      var(--accent3) 80deg,
+      transparent 140deg,
+      transparent 360deg);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+            mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+            mask-composite: exclude;
+    opacity: 0; transition: opacity 0.4s;
+    z-index: 2; pointer-events: none;
+  }
+  .compliance-card:hover::after { opacity: 1; animation: rotateBorder 4s linear infinite; }
+  @keyframes rotateBorder { from { --angle: 0deg; } to { --angle: 360deg; } }
+  @property --angle { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
+  .compliance-card-title { font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 0.95rem; margin-bottom: 0.6rem; color: var(--accent3); position: relative; z-index: 3; }
+  .compliance-card-desc  { font-size: 0.82rem; color: var(--text-secondary); line-height: 1.6; font-weight: 300; position: relative; z-index: 3; }
+  @media (max-width: 1100px) { .compliance-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 700px)  { .compliance-grid { grid-template-columns: 1fr; } }
+
+  /* ── STATS (slide 3) ── */
+  .stats-layout { display: grid; grid-template-columns: 1.25fr 1fr; gap: 3rem; align-items: center; margin-top: 2rem; }
+  .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.2rem; }
+  .stat-card {
+    position: relative; background: var(--bg-dark); border-radius: 1rem; padding: 1.8rem 1.6rem;
+    border: 1px solid rgba(255,255,255,0.06); overflow: hidden; isolation: isolate;
+  }
+  .stat-number { font-family: 'Space Grotesk', sans-serif; font-size: clamp(2.2rem, 3.4vw, 3.2rem); font-weight: 700; line-height: 1; background: var(--gradient-1); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: -0.02em; }
+  .stat-label { font-size: 0.88rem; color: var(--text-secondary); line-height: 1.55; font-weight: 300; margin-top: 0.85rem; }
+  .stats-img .img-wrap { width: 100%; height: 55vh; border-radius: 1rem; overflow: hidden; }
+
+  /* ── PROBLEM (slide 4) ── */
+  .problem-top { display: grid; grid-template-columns: 1.05fr 1fr; gap: 3rem; align-items: center; margin-bottom: 2.2rem; }
+  .problem-top .problem-img { height: 44vh; border-radius: 1rem; overflow: hidden; }
+  .problem-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.2rem; }
+  .compliance-card-num { font-family: 'Space Grotesk', sans-serif; font-size: 2.2rem; font-weight: 800; color: rgba(101,163,13,0.25); line-height: 1; margin-bottom: 0.7rem; position: relative; z-index: 3; }
+  @media (max-width: 1100px) { .problem-grid { grid-template-columns: repeat(2,1fr); } .problem-top { grid-template-columns: 1fr; } .problem-top .problem-img { height: 38vh; } .stats-layout { grid-template-columns: 1fr; } }
+  @media (max-width: 700px)  { .problem-grid { grid-template-columns: 1fr; } .stats-grid { grid-template-columns: 1fr; } }
+
+  /* ── MARKET BARS (slide 8) ── */
+  .market-bars { width: 100%; display: flex; flex-direction: column; gap: 1.1rem; margin-top: 1.2rem; }
+  .bar-item { width: 100%; }
+  .bar-label { font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 0.4rem; font-weight: 400; letter-spacing: 0.02em; }
+  .bar-track { height: 2.1rem; background: rgba(255,255,255,0.04); border-radius: 0.5rem; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 0.5rem; display: flex; align-items: center; padding-left: 1rem; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 0.82rem; width: 0 !important; transition: width 1.6s cubic-bezier(0.16,1,0.3,1); color: #fff; }
+  .bar-fill.animated { width: var(--target-width) !important; }
+
+  /* ── WAVES (slide 10) ── */
+  .waves-layout { display: grid; grid-template-columns: 1.3fr 1fr; gap: 3rem; align-items: center; margin-top: 2rem; }
+  .waves-cards { display: flex; flex-direction: column; gap: 1.1rem; }
+  .wave-card { padding: 1.8rem 1.6rem; }
+  .wave-card.wave-card-1 { border-left: 3px solid var(--accent); }
+  .wave-card.wave-card-2 { border-left: 3px solid var(--accent2); }
+  .wave-card.wave-card-3 { border-left: 3px solid var(--accent3); }
+  .wave-period { font-family: 'Space Grotesk', sans-serif; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.2em; color: var(--accent2); margin-bottom: 0.5rem; position: relative; z-index: 3; }
+  .waves-img .img-wrap { width: 100%; height: 56vh; border-radius: 1rem; overflow: hidden; }
+  @media (max-width: 1100px) { .waves-layout { grid-template-columns: 1fr; } .waves-img .img-wrap { height: 40vh; } }
+
+  /* ── EXAMPLES GRID (slide 8): 3 thematic columns + bottom gallery ── */
+  .examples-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.4rem; margin-top: 1.8rem; }
+  .example-col { display: flex; flex-direction: column; gap: 0; background: var(--bg-dark); border-radius: 1rem; overflow: hidden; border: 1px solid rgba(255,255,255,0.06); }
+  .example-col .img-wrap { width: 100%; height: 30vh; overflow: hidden; }
+  .example-col .example-card { padding: 1.6rem 1.4rem 1.8rem; }
+  .example-col .wave-period { margin-bottom: 0.4rem; }
+  .example-col.ex-1 { border-top: 3px solid var(--accent); }
+  .example-col.ex-2 { border-top: 3px solid var(--accent2); }
+  .example-col.ex-3 { border-top: 3px solid var(--accent3); }
+  .examples-gallery-wrap { margin-top: 2.4rem; }
+  .examples-gallery-label { font-family: 'Space Grotesk', sans-serif; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.28em; text-transform: uppercase; color: var(--accent2); margin-bottom: 0.9rem; }
+  .examples-gallery { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.8rem; }
+  .examples-gallery .img-wrap { width: 100%; height: 22vh; border-radius: 0.6rem; overflow: hidden; }
+  @media (max-width: 1100px) { .examples-grid { grid-template-columns: 1fr; } .example-col .img-wrap { height: 34vh; } .examples-gallery { grid-template-columns: repeat(2, 1fr); } .examples-gallery .img-wrap { height: 26vh; } }
+
+  /* ── CTA ── */
+  .slide-cta { background: var(--gradient-2); align-items: center; justify-content: center; padding: 0; position: relative; }
+  .cta-bg-img { position: absolute; inset: 0; z-index: 0; overflow: hidden; }
+  .cta-bg-img img { width: 100%; height: 100%; object-fit: cover; opacity: 0.35; filter: blur(1px) saturate(1.2); }
+  .cta-bg-img::after { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse at center, transparent 0%, rgba(10,10,15,0.6) 50%, rgba(10,10,15,0.95) 90%); }
+  .cta-content { position: relative; z-index: 2; text-align: center; padding: 5vh 8vw; max-width: 1100px; }
+  .slide-cta::before { content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 60vw; height: 60vw; background: radial-gradient(circle, rgba(101,163,13,0.1) 0%, transparent 60%); border-radius: 50%; animation: pulse 6s ease-in-out infinite; z-index: 1; }
+  @keyframes pulse { 0%, 100% { transform: translate(-50%,-50%) scale(1); opacity: 0.5; } 50% { transform: translate(-50%,-50%) scale(1.1); opacity: 1; } }
+  .cta-title { font-family: 'Space Grotesk', sans-serif; font-size: clamp(2.5rem,4.5vw,4.5rem); font-weight: 700; line-height: 1.1; letter-spacing: -0.02em; }
+  .cta-body { font-size: 1.05rem; color: var(--text-secondary); line-height: 1.7; max-width: 620px; margin: 1.5rem auto 0; font-weight: 300; }
+  .cta-badge { display: inline-block; margin-top: 2rem; padding: 0.9rem 2.5rem; border: 1px solid var(--accent); border-radius: 3rem; font-family: 'Space Grotesk', sans-serif; font-size: 0.8rem; font-weight: 500; letter-spacing: 0.2em; color: var(--accent2); transition: all 0.4s; background: transparent; will-change: transform; }
+  .cta-badge:hover { background: rgba(101,163,13,0.15); box-shadow: 0 0 30px rgba(101,163,13,0.3); }
+
+  /* ── PARTICLES ── */
+  .particle { position: fixed; width: 3px; height: 3px; background: var(--accent); border-radius: 50%; pointer-events: none; z-index: 0; opacity: 0; animation: particleFloat linear infinite; }
+  @keyframes particleFloat { 0% { opacity: 0; transform: translateY(100vh) scale(0); } 10% { opacity: 0.4; } 90% { opacity: 0.4; } 100% { opacity: 0; transform: translateY(-10vh) scale(1); } }
+
+  /* ── LIGHTBOX (solid bg to prevent content flash) ── */
+  .lightbox {
+    position: fixed; inset: 0;
+    background: rgba(5,5,8,0.97);
+    backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+    z-index: 11000;
+    display: none;
+    align-items: center; justify-content: center;
+    padding: 5vh 6vw;
+  }
+  .lightbox.open { display: flex; }
+  .lightbox-stage { position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  .lightbox-stage img {
+    max-width: 100%; max-height: 100%; object-fit: contain;
+    box-shadow: 0 0 80px rgba(0,0,0,0.8); border-radius: 4px;
+    position: absolute; will-change: transform, opacity;
+  }
+  .lightbox-close, .lightbox-prev, .lightbox-next {
+    position: fixed; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.14);
+    color: #fff; width: 52px; height: 52px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+    font-size: 1.3rem; font-family: inherit; z-index: 11010;
+    transition: background 0.25s, border-color 0.25s, transform 0.25s;
+  }
+  .lightbox-close:hover, .lightbox-prev:hover, .lightbox-next:hover {
+    background: var(--accent); border-color: var(--accent); transform: scale(1.08);
+  }
+  .lightbox-close { top: 1.5rem; right: 1.5rem; }
+  .lightbox-prev  { left: 1.5rem; top: 50%; transform: translateY(-50%); }
+  .lightbox-prev:hover { transform: translateY(-50%) scale(1.08); }
+  .lightbox-next  { right: 1.5rem; top: 50%; transform: translateY(-50%); }
+  .lightbox-next:hover { transform: translateY(-50%) scale(1.08); }
+  .lightbox-counter { position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%); font-family: 'Space Grotesk'; font-size: 0.72rem; letter-spacing: 0.28em; color: rgba(255,255,255,0.6); text-transform: uppercase; z-index: 11010; }
+
+  /* ── SLIDE 5 pill/counter ── */
+  .highlight-pill { display: inline-block; padding: 0.4rem 1rem; border-radius: 2rem; background: rgba(251,191,36,0.12); border: 1px solid rgba(251,191,36,0.3); color: var(--accent3); font-weight: 600; font-size: 1rem; margin: 0 0.25rem; }
+  .counter-num { font-family: 'Space Grotesk'; font-weight: 700; color: var(--accent3); display: inline-block; min-width: 1.5ch; }
+
+  /* ── PRINT ── */
+  @media print {
+    .slide { page-break-after: always; page-break-inside: avoid; height: auto; min-height: 100vh; }
+    .nav-dots, .progress-ring, .particle, #webgl-bg, .bg-gradient-animated, .grain, .cursor-dot, .cursor-ring, .cursor-label, .top-brand, .hero-scroll-hint { display: none !important; }
+    .pinned-formats { height: auto; }
+    .pinned-formats .h-track { display: block; width: 100%; transform: none !important; }
+    .pinned-formats .h-panel { width: 100%; height: auto; min-height: 100vh; }
+    .two-col, .title-grid, .target-layout { display: grid !important; }
+    body { cursor: auto; }
+    @page { size: landscape; margin: 0; }
+  }
+
+  /* ── MOBILE ── */
+  @media (max-width: 900px) {
+    .slide { height: auto; min-height: 100vh; }
+    .two-col, .title-grid, .scale-layout, .target-layout { grid-template-columns: 1fr !important; height: auto; }
+    .col-text, .title-text-col { padding: 10vh 6vw 4vh; }
+    .col-img, .title-img-col { height: 55vh; }
+    .diptych { grid-template-columns: 1fr; height: auto; }
+    .diptych .img-wrap { height: 45vh; }
+    .diptych::after { display: none; }
+    .mosaic-3, .mosaic-2 { grid-template-columns: 1fr; height: auto; }
+    .mosaic-3 .img-wrap, .mosaic-2 .img-wrap { height: 40vh; }
+    .collage { height: 70vh; }
+    .collage .img-wrap { position: relative !important; width: 48% !important; height: 30% !important; top: auto !important; left: auto !important; right: auto !important; bottom: auto !important; display: inline-block; margin: 4px; transform: none !important; }
+    .title-main { font-size: clamp(2rem, 8vw, 3.2rem); }
+    .title-main .line-inner { white-space: normal; }
+    .title-sub { max-width: 100%; }
+    .marquee-v { height: 60vh; }
+    .marquee-v-track .img-wrap { height: 24vh; }
+    .top-brand { top: 0.9rem; left: 1rem; }
+    .progress-ring { top: 0.9rem; right: 0.9rem; width: 44px; height: 44px; }
+    body { cursor: auto !important; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Static gradient fallback (behind WebGL) -->
+<div class="bg-gradient-animated"></div>
+<!-- WebGL shader canvas -->
+<canvas id="webgl-bg" aria-hidden="true"></canvas>
+
+<!-- Grain overlay -->
+<div class="grain"></div>
+
+<!-- Top-left: studio brand + CONFIDENTIAL -->
+<div class="top-brand" aria-hidden="true">
+  <div class="brand-name">smatana<span class="dot">.</span></div>
+  <div class="confidential">Confidential · Internal Use Only</div>
+</div>
+
+<!-- Progress ring -->
+<div class="progress-ring" aria-hidden="true">
+  <svg viewBox="0 0 60 60">
+    <defs>
+      <linearGradient id="pgrad" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%"  stop-color="#4d7c0f"/>
+        <stop offset="50%" stop-color="#d97706"/>
+        <stop offset="100%" stop-color="#fbbf24"/>
+      </linearGradient>
+    </defs>
+    <circle class="track" cx="30" cy="30" r="26"/>
+    <circle class="bar"   cx="30" cy="30" r="26" id="pgBar"/>
+  </svg>
+  <div class="progress-ring-counter">
+    <span id="pgCur">01</span><span class="sep">&nbsp;/&nbsp;</span><span class="total" id="pgTot">11</span>
+  </div>
+</div>
+
+<!-- Particles -->
+<div id="particles"></div>
+
+<!-- Nav dots -->
+<nav class="nav-dots" id="navDots">
+  <a href="#s1"  data-label="Intro"></a>
+  <a href="#s2"  data-label="About"></a>
+  <a href="#s3"  data-label="Problem"></a>
+  <a href="#s4"  data-label="Solution"></a>
+  <a href="#s5"  data-label="Principle"></a>
+  <a href="#s6"  data-label="Rules"></a>
+  <a href="#s7"  data-label="Story"></a>
+  <a href="#s8"  data-label="Examples"></a>
+  <a href="#s9"  data-label="Production"></a>
+  <a href="#s10" data-label="Status"></a>
+  <a href="#s11" data-label="Working Version"></a>
+</nav>
+
+<!-- Custom cursor -->
+<div class="cursor-ring" id="cursorRing"></div>
+<div class="cursor-dot"  id="cursorDot"></div>
+<div class="cursor-label" id="cursorLabel">VIEW</div>
+
+<!-- Lightbox -->
+<div class="lightbox" id="lightbox" role="dialog" aria-modal="true">
+  <div class="lightbox-stage" id="lbStage"></div>
+  <button class="lightbox-close" id="lbClose" aria-label="Close">✕</button>
+  <button class="lightbox-prev"  id="lbPrev"  aria-label="Previous">‹</button>
+  <button class="lightbox-next"  id="lbNext"  aria-label="Next">›</button>
+  <div class="lightbox-counter" id="lbCounter"></div>
+</div>
+
+
+<!-- ══ 1 TITLE ══ -->
+<section class="slide slide-title" id="s1" data-nav="1">
+  <div class="title-grid">
+    <div class="title-text-col">
+      <span class="title-label" data-split-words>Concept Document · April 2026 · Draft</span>
+      <h1 class="title-main">
+        <span class="line-mask"><span class="line-inner hl-line-1"><span class="highlight">Invisible</span></span></span><br>
+        <span class="line-mask"><span class="line-inner hl-line-2" data-split-chars>Craftsmen</span></span>
+      </h1>
+      <p class="title-sub" data-split-words>A visual language of video ads for brands that want to show the value of their work &mdash; by making the tiny workers behind every product finally visible.</p>
+    </div>
+    <div class="title-img-col">
+      <div class="img-wrap img-edge-bleed hero-img" data-parallax="0.1" data-lightbox>
+        <img src="images/image 7.PNG" alt="Hero visual">
+        <div class="img-caption">01 · The hidden work</div>
+      </div>
+    </div>
+  </div>
+  <div class="title-meta">INVISIBLE CRAFTSMEN · VISUAL LANGUAGE</div>
+  <div class="hero-scroll-hint"><span>Scroll</span><div class="line"></div></div>
+</section>
+
+
+<!-- ══ 2 ABOUT THIS DOCUMENT ══ -->
+<section class="slide" id="s2" data-nav="2" style="background:var(--bg-dark);">
+  <div class="two-col">
+    <div class="col-text">
+      <span class="section-label" data-reveal>About this document</span>
+      <h2 class="section-title" data-split-words>A visual language <span style="color:var(--accent2);">in development</span>.</h2>
+      <div class="section-body" data-reveal>
+        <p>This document describes a visual language we are developing for brands to communicate the value of their products.</p>
+        <p><strong style="color:var(--accent3)">This is not a finished product.</strong> It is a plan we are currently working on &mdash; a working draft, meant for internal review and conversation.</p>
+      </div>
+    </div>
+    <div class="col-img col-img-right">
+      <div class="img-wrap img-full-bleed" data-parallax="0.08" data-lightbox>
+        <img src="images/image 5.png" alt="">
+        <div class="img-caption">02 · Working draft</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ══ 3 THE PROBLEM ══ -->
+<section class="slide" id="s3" data-nav="3" style="background:var(--bg-card); flex-direction:column; justify-content:center; padding:6vh 8vw;">
+  <span class="section-label" data-reveal>The problem</span>
+  <h2 class="section-title" data-split-words>Most everyday products are <span style="color:var(--accent);">invisible</span>.</h2>
+  <div class="problem-top">
+    <div class="section-body" data-reveal style="max-width:640px;">
+      <p>A person buys a beer, a croissant, or a piece of chocolate and consumes it in minutes &mdash; without thinking about the work behind it.</p>
+      <p>From growing the ingredients to the final product &mdash; behind every simple object is a chain of steps that no one sees.</p>
+      <p><strong style="color:var(--accent3)">Brands usually try to fix this in two ways &mdash; and neither really works.</strong></p>
+    </div>
+    <div class="img-wrap problem-img" data-parallax="0.04" data-lightbox>
+      <img src="images/imag01.png" alt="">
+      <div class="img-caption">03 · The chain nobody sees</div>
+    </div>
+  </div>
+  <div class="problem-grid" style="grid-template-columns:repeat(2,1fr);">
+    <div class="compliance-card tilt-card glow-card" data-reveal>
+      <div class="compliance-card-num">01</div>
+      <div class="compliance-card-title">Documentary style</div>
+      <div class="compliance-card-desc">Showing the real factory. Honest, but often boring &mdash; the viewer loses interest before the story begins.</div>
+    </div>
+    <div class="compliance-card tilt-card glow-card" data-reveal>
+      <div class="compliance-card-num">02</div>
+      <div class="compliance-card-title">Stylized ads</div>
+      <div class="compliance-card-desc">Using actors, glossy cinematography and music. Often empty and generic &mdash; the viewer never truly feels the value of the work.</div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ══ 4 OUR SOLUTION ══ -->
+<section class="slide" id="s4" data-nav="4" style="background:var(--bg-dark);">
+  <div class="two-col">
+    <div class="col-text">
+      <span class="section-label" data-reveal>Our solution</span>
+      <h2 class="section-title" data-split-words>A world of <span style="color:var(--accent2);">miniature craftsmen</span>.</h2>
+      <div class="section-body" data-reveal>
+        <p>We suggest a completely different visual language. Instead of showing real people in a real factory, we create a world of tiny craftsmen &mdash; working with real ingredients in a real human world.</p>
+        <p>The principle is simple: <strong style="color:var(--text-primary)">the product stays its real size</strong>, but the workers are tiny. This changes how we see things.</p>
+        <p style="margin-top:1.2rem;"><strong style="color:var(--accent3)">A normal potato becomes a giant boulder. One glass of beer becomes a monument that took dozens of little beings months to build.</strong></p>
+      </div>
+    </div>
+    <div class="col-img col-img-right">
+      <div class="img-wrap img-full-bleed" data-parallax="0.08" data-lightbox>
+        <img src="images/image 8.png" alt="">
+        <div class="img-caption">04 · Real ingredients, tiny workers</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ══ 5 KEY PRINCIPLE ══ -->
+<section class="slide" id="s5" data-nav="5" style="background:var(--bg-card); flex-direction:column; justify-content:center; padding:6vh 8vw;">
+  <span class="section-label" data-reveal>Key principle</span>
+  <h2 class="section-title" data-split-words>Change of scale <span style="color:var(--accent);">=</span> <span style="color:var(--accent3);">change of perceived value</span>.</h2>
+  <div class="scale-layout">
+    <div>
+      <div class="section-body" data-reveal style="max-width:100%;">
+        <p>When a viewer sees how much effort <span class="highlight-pill">dozens of tiny craftsmen</span> put into one glass of beer, that beer transforms. It is no longer an ordinary product &mdash; it becomes something precious.</p>
+        <p>The contrast is everything: a soft, small felt worker straining against a massive, photographically real ingredient. Work becomes monumental. Effort becomes visible.</p>
+        <p style="margin-top:1.2rem;"><strong style="color:var(--accent2)">The viewer stops seeing a product. They start seeing the story behind it.</strong></p>
+      </div>
+    </div>
+    <div class="marquee-v">
+      <div class="marquee-v-track">
+        <div class="img-wrap" data-lightbox><img src="images/image02.png" alt=""><div class="img-caption">05A · Scale</div></div>
+        <div class="img-wrap" data-lightbox><img src="images/image4.png" alt=""><div class="img-caption">05B · Effort</div></div>
+        <div class="img-wrap" data-lightbox><img src="images/image5.png" alt=""><div class="img-caption">05C · Value</div></div>
+        <div class="img-wrap" data-lightbox><img src="images/image 6.PNG" alt=""><div class="img-caption">05D · Weight</div></div>
+        <div class="img-wrap" data-lightbox><img src="images/new/wine1.png" alt=""><div class="img-caption">05E · Harvest</div></div>
+        <div class="img-wrap" data-lightbox><img src="images/new/wine2.png" alt=""><div class="img-caption">05F · Craft</div></div>
+        <div class="img-wrap" data-lightbox data-lb-skip><img src="images/image02.png" alt="" aria-hidden="true"></div>
+        <div class="img-wrap" data-lightbox data-lb-skip><img src="images/image4.png" alt="" aria-hidden="true"></div>
+        <div class="img-wrap" data-lightbox data-lb-skip><img src="images/image5.png" alt="" aria-hidden="true"></div>
+        <div class="img-wrap" data-lightbox data-lb-skip><img src="images/image 6.PNG" alt="" aria-hidden="true"></div>
+        <div class="img-wrap" data-lightbox data-lb-skip><img src="images/new/wine1.png" alt="" aria-hidden="true"></div>
+        <div class="img-wrap" data-lightbox data-lb-skip><img src="images/new/wine2.png" alt="" aria-hidden="true"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ══ 6 PINNED HORIZONTAL: 5 RULES OF THE WORLD ══ -->
+<section class="slide pinned-formats" id="s6" data-nav="6">
+  <div class="h-track" id="hTrack">
+
+    <div class="h-panel" id="s6a">
+      <div class="panel-header">
+        <span class="panel-num">RULE 01 / 05</span>
+        <div class="panel-progress" style="--p:20%"></div>
+      </div>
+      <h2 class="section-title panel-title" data-panel-title><span style="color:var(--accent);">Scale</span>.</h2>
+      <div class="panel-body-wrap">
+        <div class="panel-text">
+          <div class="section-body panel-body">
+            <p>The figures are miniature &mdash; about 2&ndash;3&nbsp;cm tall. Everything else &mdash; ingredients, products, environment &mdash; stays at real human size.</p>
+            <p><strong style="color:var(--accent3)">The tiny worker is the only thing that doesn&rsquo;t &ldquo;belong&rdquo; in this world.</strong> And that&rsquo;s exactly what makes it feel true.</p>
+          </div>
+        </div>
+        <div class="mosaic mosaic-2">
+          <div class="img-wrap" data-lightbox><img src="images/new/potato 0.png" alt=""><div class="img-caption">A1 · Tiny worker</div></div>
+          <div class="img-wrap" data-lightbox><img src="images/new/potato 2.png" alt=""><div class="img-caption">A2 · Real size ingredient</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="h-panel" id="s6b">
+      <div class="panel-header">
+        <span class="panel-num">RULE 02 / 05</span>
+        <div class="panel-progress" style="--p:40%"></div>
+      </div>
+      <h2 class="section-title panel-title" data-panel-title><span style="color:var(--accent3);">Material</span>.</h2>
+      <div class="panel-body-wrap">
+        <div class="panel-text">
+          <div class="section-body panel-body">
+            <p>The characters are made of <strong style="color:var(--text-primary)">felt or wool</strong>. The ingredients and products are always photographically real.</p>
+            <p>This contrast between soft felt and the hard, realistic surface of a potato is intentional. Felt immediately suggests <em>handmade</em> &mdash; warmth, care, labour, patience.</p>
+          </div>
+        </div>
+        <div class="mosaic mosaic-2">
+          <div class="img-wrap" data-lightbox><img src="images/new/croissant2.PNG" alt=""><div class="img-caption">B1 · Felt texture</div></div>
+          <div class="img-wrap" data-lightbox><img src="images/new/chocolate1.png" alt=""><div class="img-caption">B2 · Real surfaces</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="h-panel" id="s6c">
+      <div class="panel-header">
+        <span class="panel-num">RULE 03 / 05</span>
+        <div class="panel-progress" style="--p:60%"></div>
+      </div>
+      <h2 class="section-title panel-title" data-panel-title><span style="color:var(--accent2);">Invisibility</span>.</h2>
+      <div class="panel-body-wrap">
+        <div class="panel-text">
+          <div class="section-body panel-body">
+            <p>The craftsmen work in the human world, but real humans never see them. A human shoe might walk past. A cat might run by. But humans do not react to the workers.</p>
+            <p><strong style="color:var(--accent3)">They only ever see the result of their work.</strong></p>
+          </div>
+        </div>
+        <div class="mosaic mosaic-2">
+          <div class="img-wrap" data-lightbox><img src="images/new/wine3.png" alt=""><div class="img-caption">C1 · Working unseen</div></div>
+          <div class="img-wrap" data-lightbox><img src="images/new/wine4.png" alt=""><div class="img-caption">C2 · Only the result remains</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="h-panel" id="s6d">
+      <div class="panel-header">
+        <span class="panel-num">RULE 04 / 05</span>
+        <div class="panel-progress" style="--p:80%"></div>
+      </div>
+      <h2 class="section-title panel-title" data-panel-title><span style="color:var(--accent);">Mystery</span>.</h2>
+      <div class="panel-body-wrap">
+        <div class="panel-text">
+          <div class="section-body panel-body">
+            <p>We never explain where they came from. They are not fairy-tale creatures. They are not elves. They simply exist and work.</p>
+            <p><strong style="color:var(--text-primary)">The viewer creates their own answer.</strong> That private wondering is half of the magic.</p>
+          </div>
+        </div>
+        <div class="mosaic mosaic-2">
+          <div class="img-wrap" data-lightbox><img src="images/new/wine5.png" alt=""><div class="img-caption">D1 · No backstory</div></div>
+          <div class="img-wrap" data-lightbox><img src="images/new/wine6.png" alt=""><div class="img-caption">D2 · They simply exist</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="h-panel" id="s6e">
+      <div class="panel-header">
+        <span class="panel-num">RULE 05 / 05</span>
+        <div class="panel-progress" style="--p:100%"></div>
+      </div>
+      <h2 class="section-title panel-title" data-panel-title>One <span style="color:var(--accent3);">product</span>.</h2>
+      <div class="panel-body-wrap">
+        <div class="panel-text">
+          <div class="section-body panel-body">
+            <p>The story is always about making <strong style="color:var(--text-primary)">one single item</strong> &mdash; one glass of beer, one croissant, one chocolate bar.</p>
+            <p>The contrast between massive effort and a single result is the emotional hook. A whole season of work, and all of it lands in one human hand.</p>
+          </div>
+        </div>
+        <div class="mosaic mosaic-2">
+          <div class="img-wrap" data-lightbox><img src="images/new/beer 2.png" alt=""><div class="img-caption">E1 · One final object</div></div>
+          <div class="img-wrap" data-lightbox><img src="images/new/beer 3.png" alt=""><div class="img-caption">E2 · Massive effort</div></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+
+<!-- ══ 7 STORY STRUCTURE ══ -->
+<section class="slide" id="s7" data-nav="7" style="background:var(--bg-dark); flex-direction:column; justify-content:center; padding:6vh 8vw;">
+  <span class="section-label" data-reveal>Story structure</span>
+  <h2 class="section-title" data-split-words>Every video follows <span style="color:var(--accent3);">the same logic</span>.</h2>
+  <div class="section-body" data-reveal style="max-width:800px; margin-bottom:1.6rem;">
+    <p>Four beats, every time. The repetition is not a limitation &mdash; it is what makes the world recognizable. Viewers learn the shape and start anticipating each moment.</p>
+  </div>
+  <div class="compliance-grid" style="grid-template-columns:repeat(2,1fr);">
+    <div class="compliance-card tilt-card glow-card" data-reveal>
+      <div class="compliance-card-num">01</div>
+      <div class="compliance-card-title" style="color:var(--accent)">Mystery</div>
+      <div class="compliance-card-desc">The video opens with close-ups of hard work. The viewer sees the focused little craftsmen, but doesn&rsquo;t yet know what they&rsquo;re making.</div>
+    </div>
+    <div class="compliance-card tilt-card glow-card" data-reveal>
+      <div class="compliance-card-num">02</div>
+      <div class="compliance-card-title" style="color:var(--accent2)">Effort</div>
+      <div class="compliance-card-desc">We show the struggle. Farming, transport, processing. Workers fighting giant ingredients in the cold, the rain, or late at night.</div>
+    </div>
+    <div class="compliance-card tilt-card glow-card" data-reveal>
+      <div class="compliance-card-num">03</div>
+      <div class="compliance-card-title" style="color:var(--accent3)">Reveal</div>
+      <div class="compliance-card-desc">The camera finally zooms out, and the viewer sees what they were building. <strong style="color:var(--text-primary)">This is the &ldquo;Aha!&rdquo; moment.</strong></div>
+    </div>
+    <div class="compliance-card tilt-card glow-card" data-reveal>
+      <div class="compliance-card-num">04</div>
+      <div class="compliance-card-title" style="color:var(--accent)">Departure</div>
+      <div class="compliance-card-desc">A real human hand takes the finished product. The human has no idea who made it. In the shadows, the tiny craftsmen quietly leave. Their work is done.</div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ══ 8 EXAMPLES OF USE ══ -->
+<section class="slide" id="s8" data-nav="8" style="background:var(--bg-card); flex-direction:column; justify-content:center; padding:6vh 8vw;">
+  <span class="section-label" data-reveal>Examples of use</span>
+  <h2 class="section-title" data-split-words>From seed <span style="color:var(--accent);">to final product</span>.</h2>
+  <div class="section-body" data-reveal style="max-width:800px;">
+    <p>Three products, three stories, three seasons of unseen work &mdash; each ending in a single item that passes into a human hand.</p>
+  </div>
+
+  <div class="examples-grid">
+    <div class="example-col ex-1 tilt-card glow-card" data-reveal>
+      <div class="img-wrap" data-lightbox>
+        <img src="images/new/potato1.png" alt="">
+        <div class="img-caption">08A · Fries</div>
+      </div>
+      <div class="example-card">
+        <div class="wave-period">EXAMPLE &middot; FRENCH FRIES</div>
+        <div class="compliance-card-title">A year of work for a Christmas tree of fries</div>
+        <div class="compliance-card-desc">An old felt craftsman plants a seed in spring, grows a potato through the summer, and pushes a giant potato across the land in autumn. On Christmas Eve, he builds a tiny Christmas tree out of fries.</div>
+      </div>
+    </div>
+    <div class="example-col ex-2 tilt-card glow-card" data-reveal>
+      <div class="img-wrap" data-lightbox>
+        <img src="images/new/beer 1.png" alt="">
+        <div class="img-caption">08B · Beer</div>
+      </div>
+      <div class="example-card">
+        <div class="wave-period">EXAMPLE &middot; BEER</div>
+        <div class="compliance-card-title">A whole season for one glass</div>
+        <div class="compliance-card-desc">A group of felt farmers harvests giant hops and processes them over weeks. A whole season of work, and the result is just one glass of beer &mdash; served.</div>
+      </div>
+    </div>
+    <div class="example-col ex-3 tilt-card glow-card" data-reveal>
+      <div class="img-wrap" data-lightbox>
+        <img src="images/new/wine7.png" alt="">
+        <div class="img-caption">08C · Wine</div>
+      </div>
+      <div class="example-card">
+        <div class="wave-period">EXAMPLE &middot; WINE</div>
+        <div class="compliance-card-title">Ladders, grapes, and one label</div>
+        <div class="compliance-card-desc">Felt workers climb ladders to pick giant grapes and carry them on their backs. At the very end, one tiny worker climbs a ladder just to glue the label onto the bottle.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="examples-gallery-wrap">
+    <div class="examples-gallery-label" data-reveal>And it works anywhere effort is invisible</div>
+    <div class="examples-gallery">
+      <div class="img-wrap" data-lightbox><img src="images/new/croissant1.PNG" alt=""><div class="img-caption">Croissant</div></div>
+      <div class="img-wrap" data-lightbox><img src="images/new/chocolate2.png" alt=""><div class="img-caption">Chocolate</div></div>
+      <div class="img-wrap" data-lightbox><img src="images/new/ice cream.PNG" alt=""><div class="img-caption">Ice cream</div></div>
+      <div class="img-wrap" data-lightbox><img src="images/new/rice.png" alt=""><div class="img-caption">Rice</div></div>
+    </div>
+  </div>
+
+  <div class="section-body" data-reveal style="max-width:800px; margin-top:1.8rem;">
+    <p><strong style="color:var(--text-primary)">The visual language applies anywhere work is real but invisible</strong> &mdash; bread, coffee, honey, olive oil, chocolate, fruit. Every product with a long story behind it is a candidate.</p>
+  </div>
+</section>
+
+
+<!-- ══ 9 TECHNOLOGY & PRODUCTION ══ -->
+<section class="slide" id="s9" data-nav="9" style="background:var(--bg-dark);">
+  <div class="two-col">
+    <div class="col-text">
+      <span class="section-label" data-reveal>Technology &amp; production</span>
+      <h2 class="section-title" data-split-words>Handmade, <span style="color:var(--accent2);">AI-assisted</span>, carefully composed.</h2>
+      <div class="section-body" data-reveal>
+        <p>We combine three production layers: <strong style="color:var(--text-primary)">handmade stop-motion animation</strong> for authenticity, <strong style="color:var(--text-primary)">AI tools</strong> for speed and scale, and <strong style="color:var(--text-primary)">classic post-production</strong> to bring everything together.</p>
+        <p>We are also developing an internal <span class="highlight-pill">AI prompt system</span> &mdash; a set of rules and references baked into the generation pipeline. This ensures every generated output follows our visual rules perfectly: the right scale, the right material, the right mood.</p>
+        <p style="margin-top:1.2rem;"><strong style="color:var(--accent3)">The technology stays invisible. The craftsmen stay the story.</strong></p>
+      </div>
+    </div>
+    <div class="col-img col-img-right">
+      <div class="img-wrap img-full-bleed" data-parallax="0.08" data-lightbox>
+        <img src="images/new/wine8.png" alt="">
+        <div class="img-caption">09 · Production layers</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ══ 10 STATUS ══ -->
+<section class="slide" id="s10" data-nav="10" style="background:var(--bg-card);">
+  <div class="two-col">
+    <div class="col-text">
+      <span class="section-label" data-reveal>Current status</span>
+      <h2 class="section-title" data-split-words>From paper <span style="color:var(--accent);">to the screen</span>.</h2>
+      <div class="section-body" data-reveal>
+        <p style="color:var(--accent3); font-weight:500; margin-bottom:0.5rem;">Where we are</p>
+        <p>We are currently defining the visual language and the production system. The rules are written. The story structure is set. The first sample frames exist. The AI prompt system is in early development.</p>
+        <p style="color:var(--accent2); font-weight:500; margin:1.5rem 0 0.5rem;">What comes next</p>
+        <p>In the coming weeks, we&rsquo;ll work on the first pilot videos &mdash; to move this concept from paper to the screen. One product, one story, the full arc. That&rsquo;s when the language stops being a description and becomes something you can feel.</p>
+        <p style="margin-top:1.2rem;"><strong style="color:var(--text-primary)">This document is a working draft. It will evolve as the pilots evolve.</strong></p>
+      </div>
+    </div>
+    <div class="col-img col-img-right">
+      <div class="img-wrap img-full-bleed" data-parallax="0.08" data-lightbox>
+        <img src="images/new/wine9.png" alt="">
+        <div class="img-caption">10 · From concept to pilot</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ══ 11 CTA / WORKING VERSION ══ -->
+<section class="slide slide-cta" id="s11" data-nav="11">
+  <div class="cta-bg-img">
+    <img src="images/new/wine10.png" alt="">
+  </div>
+  <div class="cta-content">
+    <span class="section-label" data-reveal style="color:var(--accent2)">Working version</span>
+    <h1 class="cta-title" data-split-words>April 2026 &mdash; <span style="color:var(--accent3);">a concept in motion</span>.</h1>
+    <p class="cta-body" data-reveal>This is not a pitch and not a finished deliverable. It is a working document for the team &mdash; a shared picture of where we are heading. Comments, pushback and better ideas are all welcome. The next version will look different, and that&rsquo;s the whole point.</p>
+    <div style="margin-top:2rem;">
+      <button class="cta-badge magnetic" data-reveal>INVISIBLE CRAFTSMEN · APRIL 2026 · DRAFT</button>
+    </div>
+  </div>
+</section>
+
+
+<script>
+/* ════════════════════════════════════════════════════════════════════
+   UTILITIES — aspect detect, splitters
+   ═══════════════════════════════════════════════════════════════════ */
+function tagImageAspect(img) {
+  const apply = () => {
+    const w = img.naturalWidth, h = img.naturalHeight;
+    if (!w || !h) return;
+    const r = w / h;
+    const wrap = img.closest('.img-wrap');
+    if (!wrap) return;
+    wrap.classList.remove('is-portrait','is-landscape','is-square');
+    if (r < 0.85) wrap.classList.add('is-portrait');
+    else if (r > 1.25) wrap.classList.add('is-landscape');
+    else wrap.classList.add('is-square');
+  };
+  if (img.complete) apply(); else img.addEventListener('load', apply, { once: true });
+}
+document.querySelectorAll('.img-wrap img').forEach(tagImageAspect);
+
+function splitWords(el) {
+  const nodes = [...el.childNodes];
+  el.innerHTML = '';
+  nodes.forEach(node => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const parts = node.nodeValue.split(/(\s+)/);
+      parts.forEach(p => {
+        if (!p) return;
+        if (/^\s+$/.test(p)) { el.appendChild(document.createTextNode(p)); return; }
+        const wrap = document.createElement('span');
+        wrap.className = 'split-word';
+        const inner = document.createElement('span');
+        inner.textContent = p;
+        wrap.appendChild(inner);
+        el.appendChild(wrap);
+      });
+    } else if (node.nodeType === Node.ELEMENT_NODE) {
+      splitWords(node);
+      el.appendChild(node);
+    }
+  });
+}
+function splitChars(el) {
+  const walk = (n) => {
+    [...n.childNodes].forEach(c => {
+      if (c.nodeType === Node.TEXT_NODE) {
+        const frag = document.createDocumentFragment();
+        [...c.nodeValue].forEach(ch => {
+          if (ch === ' ') { frag.appendChild(document.createTextNode(' ')); return; }
+          const s = document.createElement('span');
+          s.className = 'split-char';
+          s.textContent = ch;
+          frag.appendChild(s);
+        });
+        c.parentNode.replaceChild(frag, c);
+      } else if (c.nodeType === Node.ELEMENT_NODE) {
+        walk(c);
+      }
+    });
+  };
+  walk(el);
+}
+document.querySelectorAll('[data-split-words]').forEach(splitWords);
+document.querySelectorAll('[data-split-chars]').forEach(splitChars);
+
+
+/* ════════════════════════════════════════════════════════════════════
+   WEBGL SHADER BACKGROUND (Three.js)
+   Ambient flowing noise, very subtle, mouse-reactive.
+   Falls back silently if WebGL unavailable.
+   ═══════════════════════════════════════════════════════════════════ */
+(function webglBg() {
+  const canvas = document.getElementById('webgl-bg');
+  if (!canvas || !window.THREE) return;
+
+  let gl;
+  try { gl = canvas.getContext('webgl', { antialias: false, alpha: true }) || canvas.getContext('experimental-webgl'); }
+  catch (e) { return; }
+  if (!gl) return;
+
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+  renderer.setSize(window.innerWidth, window.innerHeight, false);
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+
+  const uniforms = {
+    u_time:  { value: 0 },
+    u_res:   { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
+    u_mouse: { value: new THREE.Vector2(0.5 * window.innerWidth, 0.5 * window.innerHeight) },
+    u_scroll:{ value: 0 },
+  };
+
+  const material = new THREE.ShaderMaterial({
+    uniforms,
+    vertexShader: `
+      varying vec2 vUv;
+      void main() { vUv = uv; gl_Position = vec4(position, 1.0); }
+    `,
+    fragmentShader: `
+      precision highp float;
+      uniform float u_time;
+      uniform vec2  u_res;
+      uniform vec2  u_mouse;
+      uniform float u_scroll;
+      varying vec2  vUv;
+
+      vec2 hash2(vec2 p) {
+        p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));
+        return -1.0 + 2.0 * fract(sin(p) * 43758.5453123);
+      }
+      float noise(vec2 p) {
+        vec2 i = floor(p), f = fract(p);
+        vec2 u = f * f * (3.0 - 2.0 * f);
+        return mix(mix(dot(hash2(i + vec2(0,0)), f - vec2(0,0)),
+                       dot(hash2(i + vec2(1,0)), f - vec2(1,0)), u.x),
+                   mix(dot(hash2(i + vec2(0,1)), f - vec2(0,1)),
+                       dot(hash2(i + vec2(1,1)), f - vec2(1,1)), u.x), u.y);
+      }
+      float fbm(vec2 p) {
+        float f = 0.0;
+        f += 0.500 * noise(p); p *= 2.02;
+        f += 0.250 * noise(p); p *= 2.03;
+        f += 0.125 * noise(p);
+        return f;
+      }
+
+      void main() {
+        vec2 uv = vUv;
+        vec2 p = uv;
+        p.x *= u_res.x / u_res.y;
+
+        float t = u_time * 0.06 + u_scroll * 0.0005;
+        vec2 q = p * 1.6 + vec2(t, t * 0.7);
+        float n = fbm(q);
+        n = n * 0.5 + 0.5;
+
+        // subtle swirl
+        float n2 = fbm(p * 2.4 - vec2(t * 1.3, -t));
+        n = mix(n, n2, 0.4);
+
+        vec3 c1 = vec3(0.045, 0.045, 0.050);   // base dark, warm neutral
+        vec3 c2 = vec3(0.302, 0.486, 0.059);   // moss green
+        vec3 c3 = vec3(0.851, 0.463, 0.024);   // amber
+        vec3 c4 = vec3(0.984, 0.749, 0.141);   // warm gold
+
+        vec3 col = c1;
+        col = mix(col, c2, smoothstep(0.35, 0.78, n) * 0.13);
+        col = mix(col, c4, smoothstep(0.62, 0.95, n) * 0.08);
+        col = mix(col, c3, smoothstep(0.50, 0.80, 1.0 - n) * 0.05);
+
+        // mouse glow (warm amber/gold)
+        vec2 m = u_mouse / u_res;
+        m.x *= u_res.x / u_res.y;
+        float d = length(p - m);
+        float glow = smoothstep(0.55, 0.0, d) * 0.09;
+        col += vec3(glow, glow * 0.55, glow * 0.18);
+
+        // slight vignette
+        float vg = smoothstep(1.05, 0.35, length(uv - 0.5));
+        col *= mix(0.7, 1.0, vg);
+
+        gl_FragColor = vec4(col, 1.0);
+      }
+    `,
+  });
+
+  const geo = new THREE.PlaneGeometry(2, 2);
+  const mesh = new THREE.Mesh(geo, material);
+  scene.add(mesh);
+
+  let mouseX = window.innerWidth / 2, mouseY = window.innerHeight / 2;
+  let tMouseX = mouseX, tMouseY = mouseY;
+  window.addEventListener('mousemove', e => { tMouseX = e.clientX; tMouseY = e.clientY; });
+  window.addEventListener('resize', () => {
+    renderer.setSize(window.innerWidth, window.innerHeight, false);
+    uniforms.u_res.value.set(window.innerWidth, window.innerHeight);
+  });
+
+  const startTime = performance.now();
+  function render() {
+    mouseX += (tMouseX - mouseX) * 0.08;
+    mouseY += (tMouseY - mouseY) * 0.08;
+    uniforms.u_time.value = (performance.now() - startTime) / 1000;
+    uniforms.u_mouse.value.set(mouseX, window.innerHeight - mouseY);
+    uniforms.u_scroll.value = window.scrollY;
+    renderer.render(scene, camera);
+    requestAnimationFrame(render);
+  }
+  render();
+})();
+
+
+/* ════════════════════════════════════════════════════════════════════
+   LENIS SMOOTH SCROLL
+   ═══════════════════════════════════════════════════════════════════ */
+let lenis;
+if (window.Lenis) {
+  lenis = new Lenis({
+    duration: 1.2,
+    easing: t => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+    smoothWheel: true,
+    smoothTouch: false,
+  });
+  function raf(time) { lenis.raf(time); requestAnimationFrame(raf); }
+  requestAnimationFrame(raf);
+  if (window.ScrollTrigger) {
+    lenis.on('scroll', ScrollTrigger.update);
+    gsap.ticker.add(t => lenis.raf(t * 1000));
+    gsap.ticker.lagSmoothing(0);
+  }
+}
+
+
+/* ════════════════════════════════════════════════════════════════════
+   GSAP ANIMATIONS
+   ═══════════════════════════════════════════════════════════════════ */
+if (window.gsap && window.ScrollTrigger) {
+  gsap.registerPlugin(ScrollTrigger, ScrollToPlugin);
+
+  /* ── HERO INTRO — no blur on gradient text, no char-split on highlighted line ── */
+  const heroTL = gsap.timeline({ delay: 0.2, defaults: { ease: 'power3.out' } });
+
+  // Set starting states explicitly to avoid FOUC of elements that are about to animate in
+  gsap.set('#s1 .title-label .split-word > span', { yPercent: 120, opacity: 0 });
+  gsap.set('#s1 .hl-line-1', { yPercent: 110, opacity: 0 });
+  gsap.set('#s1 .hl-line-2 .split-char', { yPercent: 120, opacity: 0 });
+  gsap.set('#s1 .title-sub .split-word > span', { yPercent: 120, opacity: 0 });
+  gsap.set('#s1 .title-meta, #s1 .hero-scroll-hint', { opacity: 0 });
+  gsap.set('#s1 .hero-img img', { scale: 1.18, opacity: 0 });
+
+  heroTL
+    .to('#s1 .title-label .split-word > span', { yPercent: 0, opacity: 1, stagger: 0.025, duration: 0.8 }, 0)
+    .to('#s1 .hl-line-1', { yPercent: 0, opacity: 1, duration: 1.1 }, 0.15)
+    .to('#s1 .hl-line-2 .split-char', { yPercent: 0, opacity: 1, stagger: 0.025, duration: 0.9 }, 0.45)
+    .to('#s1 .title-sub .split-word > span', { yPercent: 0, opacity: 1, stagger: 0.015, duration: 0.7 }, 0.9)
+    .to('#s1 .title-meta', { opacity: 1, duration: 0.7 }, 1.1)
+    .to('#s1 .hero-scroll-hint', { opacity: 1, duration: 0.5 }, 1.3)
+    .to('#s1 .hero-img img', { scale: 1, opacity: 1, duration: 1.6, ease: 'power2.out' }, 0);
+
+  /* ── DATA-REVEAL ── */
+  gsap.utils.toArray('[data-reveal]').forEach(el => {
+    gsap.from(el, {
+      y: 50, opacity: 0, duration: 0.9, ease: 'power3.out',
+      scrollTrigger: { trigger: el, start: 'top 85%', toggleActions: 'play none none none' }
+    });
+  });
+
+  /* ── SECTION TITLES (skip hero + panel titles, they're handled separately) ── */
+  gsap.utils.toArray('h2.section-title[data-split-words], h1.cta-title[data-split-words]').forEach(title => {
+    if (title.closest('#s1')) return;
+    if (title.closest('.pinned-formats')) return;
+    const words = title.querySelectorAll('.split-word > span');
+    if (!words.length) return;
+    gsap.from(words, {
+      yPercent: 120, opacity: 0, stagger: 0.04, duration: 0.9, ease: 'power3.out',
+      scrollTrigger: { trigger: title, start: 'top 82%', toggleActions: 'play none none none' }
+    });
+  });
+
+  /* ── BODY paragraphs ── */
+  gsap.utils.toArray('.section-body[data-reveal] p').forEach(p => {
+    if (p.closest('.pinned-formats')) return;
+    gsap.from(p, {
+      y: 30, opacity: 0, duration: 0.9, ease: 'power3.out',
+      scrollTrigger: { trigger: p, start: 'top 88%', toggleActions: 'play none none none' }
+    });
+  });
+
+  /* ── IMAGE REVEAL (clip-path sweep) ── */
+  gsap.utils.toArray('.img-wrap').forEach(wrap => {
+    if (wrap.closest('#s1')) return;
+    if (wrap.closest('.marquee-v')) return;
+    if (wrap.closest('.collage')) return;
+    gsap.from(wrap, {
+      clipPath: 'inset(0 100% 0 0)',
+      duration: 1.1, ease: 'expo.out',
+      scrollTrigger: { trigger: wrap, start: 'top 88%', toggleActions: 'play none none none' }
+    });
+  });
+
+  /* ── PARALLAX ── */
+  gsap.utils.toArray('[data-parallax]').forEach(el => {
+    const amt = parseFloat(el.dataset.parallax) || 0.08;
+    const img = el.querySelector('img') || el;
+    gsap.to(img, {
+      yPercent: -amt * 100, ease: 'none',
+      scrollTrigger: { trigger: el, start: 'top bottom', end: 'bottom top', scrub: true }
+    });
+  });
+
+  /* ── PINNED HORIZONTAL FORMATS ── */
+  const track = document.getElementById('hTrack');
+  const panels = track ? track.querySelectorAll('.h-panel') : [];
+  if (track && panels.length && window.matchMedia('(min-width: 901px)').matches) {
+    const totalScroll = () => (panels.length - 1) * window.innerWidth;
+    const pinTween = gsap.to(track, {
+      x: () => -totalScroll(),
+      ease: 'none',
+      scrollTrigger: {
+        trigger: '#s6',
+        pin: true,
+        start: 'top top',
+        end: () => '+=' + totalScroll(),
+        scrub: 0.6,
+        invalidateOnRefresh: true,
+        anticipatePin: 1,
+      }
+    });
+
+    // Per-panel entrance animations driven by the pin containerAnimation
+    panels.forEach(panel => {
+      const title = panel.querySelector('[data-panel-title]');
+      const pBody = panel.querySelector('.panel-body');
+      const pNum  = panel.querySelector('.panel-num');
+      const pProg = panel.querySelector('.panel-progress');
+      const mosaic = panel.querySelector('.mosaic, .collage');
+
+      if (title) {
+        gsap.set(title, { opacity: 0, y: 40 });
+        gsap.to(title, {
+          opacity: 1, y: 0, duration: 0.9, ease: 'power3.out',
+          scrollTrigger: {
+            trigger: panel, containerAnimation: pinTween,
+            start: 'left 60%', end: 'left 20%',
+            toggleActions: 'play none none reverse',
+          }
+        });
+      }
+      if (pNum) {
+        gsap.from(pNum, {
+          opacity: 0, x: -30, duration: 0.6, ease: 'power3.out',
+          scrollTrigger: { trigger: panel, containerAnimation: pinTween, start: 'left 70%', toggleActions: 'play none none reverse' }
+        });
+      }
+      if (pBody) {
+        gsap.from(pBody, {
+          opacity: 0, y: 30, duration: 0.9, ease: 'power3.out', delay: 0.1,
+          scrollTrigger: { trigger: panel, containerAnimation: pinTween, start: 'left 60%', toggleActions: 'play none none reverse' }
+        });
+      }
+      if (mosaic) {
+        gsap.from(mosaic, {
+          opacity: 0, scale: 0.96, duration: 1.1, ease: 'power3.out',
+          scrollTrigger: { trigger: panel, containerAnimation: pinTween, start: 'left 65%', toggleActions: 'play none none reverse' }
+        });
+      }
+    });
+  }
+
+  /* ── BAR FILLS (market data) ── */
+  gsap.utils.toArray('.bar-fill').forEach(bar => {
+    ScrollTrigger.create({
+      trigger: bar,
+      start: 'top 85%',
+      onEnter: () => bar.classList.add('animated'),
+    });
+  });
+
+  /* ── COUNTER ── */
+  gsap.utils.toArray('[data-counter]').forEach(el => {
+    const target = parseInt(el.dataset.counter, 10);
+    const obj = { v: 0 };
+    gsap.to(obj, {
+      v: target, duration: 1.6, ease: 'power2.out',
+      onUpdate: () => { el.textContent = Math.round(obj.v); },
+      scrollTrigger: { trigger: el, start: 'top 85%', toggleActions: 'play none none none' }
+    });
+  });
+
+  /* ── COLLAGE mouse parallax ── */
+  const collage = document.getElementById('collage9');
+  if (collage) {
+    const items = collage.querySelectorAll('.img-wrap');
+    collage.addEventListener('mousemove', e => {
+      const r = collage.getBoundingClientRect();
+      const mx = (e.clientX - r.left - r.width / 2) / r.width;
+      const my = (e.clientY - r.top - r.height / 2) / r.height;
+      items.forEach((it, i) => {
+        const depth = (i % 3 + 1) * 8;
+        gsap.to(it, { x: -mx * depth, y: -my * depth, duration: 0.8, ease: 'power2.out', overwrite: 'auto' });
+      });
+    });
+    collage.addEventListener('mouseleave', () => {
+      items.forEach(it => gsap.to(it, { x: 0, y: 0, duration: 1, ease: 'power2.out', overwrite: 'auto' }));
+    });
+  }
+
+  /* ── NAV CLICKS ── */
+  document.querySelectorAll('#navDots a').forEach(a => {
+    a.addEventListener('click', e => {
+      e.preventDefault();
+      const id = a.getAttribute('href');
+      const target = document.querySelector(id);
+      if (!target) return;
+      if (lenis) lenis.scrollTo(target, { duration: 1.2 });
+      else gsap.to(window, { duration: 1.2, scrollTo: { y: target, offsetY: 0 }, ease: 'power3.inOut' });
+    });
+  });
+
+  /* ── ACTIVE DOT + PROGRESS RING ── */
+  const dots = document.querySelectorAll('#navDots a');
+  const slides = document.querySelectorAll('.slide');
+  const pgBar = document.getElementById('pgBar');
+  const pgCur = document.getElementById('pgCur');
+  const pgTot = document.getElementById('pgTot');
+  pgTot.textContent = String(dots.length).padStart(2, '0');
+  const CIRC = 2 * Math.PI * 26;
+
+  function refreshProgress() {
+    const s = window.scrollY;
+    const d = document.documentElement.scrollHeight - window.innerHeight;
+    const pct = d > 0 ? Math.min(1, Math.max(0, s / d)) : 0;
+    pgBar.style.strokeDashoffset = (CIRC * (1 - pct)).toFixed(2);
+  }
+  ScrollTrigger.create({ start: 0, end: 'max', onUpdate: refreshProgress });
+
+  slides.forEach(slide => {
+    ScrollTrigger.create({
+      trigger: slide,
+      start: 'top 45%',
+      end: 'bottom 45%',
+      onToggle: self => {
+        if (self.isActive) {
+          dots.forEach(d => d.classList.remove('active'));
+          const matching = document.querySelector(`#navDots a[href="#${slide.id}"]`);
+          if (matching) {
+            matching.classList.add('active');
+            const i = [...dots].indexOf(matching);
+            if (i >= 0) pgCur.textContent = String(i + 1).padStart(2, '0');
+          }
+        }
+      }
+    });
+  });
+
+  refreshProgress();
+}
+
+
+/* ════════════════════════════════════════════════════════════════════
+   TILT CARDS
+   ═══════════════════════════════════════════════════════════════════ */
+document.querySelectorAll('.tilt-card').forEach(card => {
+  card.addEventListener('mousemove', e => {
+    const r = card.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, cx = r.width / 2, cy = r.height / 2;
+    card.style.transform = `perspective(800px) rotateX(${((y - cy) / cy) * -6}deg) rotateY(${((x - cx) / cx) * 6}deg) translateY(-4px)`;
+    card.style.setProperty('--mouse-x', x + 'px');
+    card.style.setProperty('--mouse-y', y + 'px');
+  });
+  card.addEventListener('mouseleave', () => {
+    card.style.transform = 'perspective(800px) rotateX(0) rotateY(0) translateY(0)';
+  });
+});
+
+
+/* ════════════════════════════════════════════════════════════════════
+   PARTICLES
+   ═══════════════════════════════════════════════════════════════════ */
+(function createParticles() {
+  const c = document.getElementById('particles');
+  for (let i = 0; i < 16; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    p.style.left = Math.random() * 100 + 'vw';
+    p.style.animationDuration = (12 + Math.random() * 18) + 's';
+    p.style.animationDelay = (Math.random() * 15) + 's';
+    p.style.width = p.style.height = (2 + Math.random() * 3) + 'px';
+    const cl = ['#4d7c0f', '#65a30d', '#d97706', '#fbbf24'];
+    p.style.background = cl[Math.floor(Math.random() * cl.length)];
+    c.appendChild(p);
+  }
+})();
+
+
+/* ════════════════════════════════════════════════════════════════════
+   CUSTOM CURSOR + MAGNETIC + BG GLOW (via WebGL now, so this is lighter)
+   ═══════════════════════════════════════════════════════════════════ */
+(function cursorSystem() {
+  const dot = document.getElementById('cursorDot');
+  const ring = document.getElementById('cursorRing');
+  const label = document.getElementById('cursorLabel');
+  if (!dot || !ring) return;
+  if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+
+  let mx = window.innerWidth / 2, my = window.innerHeight / 2;
+  let rx = mx, ry = my;
+
+  window.addEventListener('mousemove', e => {
+    mx = e.clientX; my = e.clientY;
+    dot.style.transform   = `translate3d(${mx}px,${my}px,0) translate(-50%,-50%)`;
+    label.style.transform = `translate3d(${mx}px,${my + 42}px,0) translate(-50%,-50%)`;
+  });
+
+  function animateRing() {
+    rx += (mx - rx) * 0.18;
+    ry += (my - ry) * 0.18;
+    ring.style.transform = `translate3d(${rx}px,${ry}px,0) translate(-50%,-50%)`;
+    requestAnimationFrame(animateRing);
+  }
+  animateRing();
+
+  // Image hover
+  document.querySelectorAll('.img-wrap').forEach(el => {
+    el.addEventListener('mouseenter', () => {
+      ring.classList.add('is-hover-image');
+      label.textContent = 'VIEW';
+      label.classList.add('show');
+    });
+    el.addEventListener('mouseleave', () => {
+      ring.classList.remove('is-hover-image');
+      label.classList.remove('show');
+    });
+  });
+
+  // Link/button hover
+  document.querySelectorAll('a, button, .nav-dots a, .cta-badge, .lightbox-close, .lightbox-prev, .lightbox-next').forEach(el => {
+    el.addEventListener('mouseenter', () => ring.classList.add('is-hover-link'));
+    el.addEventListener('mouseleave', () => ring.classList.remove('is-hover-link'));
+  });
+
+  // Magnetic effect
+  document.querySelectorAll('.magnetic, .nav-dots a').forEach(el => {
+    el.addEventListener('mousemove', e => {
+      const r = el.getBoundingClientRect();
+      const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+      const dx = (e.clientX - cx) * 0.35, dy = (e.clientY - cy) * 0.35;
+      if (window.gsap) gsap.to(el, { x: dx, y: dy, duration: 0.5, ease: 'power3.out', overwrite: 'auto' });
+    });
+    el.addEventListener('mouseleave', () => {
+      if (window.gsap) gsap.to(el, { x: 0, y: 0, duration: 0.6, ease: 'elastic.out(1,0.4)', overwrite: 'auto' });
+    });
+  });
+})();
+
+
+/* ════════════════════════════════════════════════════════════════════
+   LIGHTBOX — no-flicker navigation (two image elements, cross-fade)
+   ═══════════════════════════════════════════════════════════════════ */
+(function lightbox() {
+  const lb = document.getElementById('lightbox');
+  const stage = document.getElementById('lbStage');
+  const lbCounter = document.getElementById('lbCounter');
+  const lbClose = document.getElementById('lbClose');
+  const lbPrev = document.getElementById('lbPrev');
+  const lbNext = document.getElementById('lbNext');
+  if (!lb) return;
+
+  // Collect only real (non-aria-hidden) images
+  const triggers = [...document.querySelectorAll('[data-lightbox]')]
+    .filter(el => !el.hasAttribute('data-lb-skip'))
+    .filter(el => {
+      const img = el.querySelector('img');
+      return img && !img.hasAttribute('aria-hidden');
+    });
+  const sources = triggers.map(el => el.querySelector('img'));
+
+  let idx = 0;
+  let current = document.createElement('img'); // currently visible
+  let incoming = document.createElement('img'); // incoming during transition
+  current.className = incoming.className = 'lb-image';
+  stage.appendChild(current);
+
+  function setCounter() {
+    lbCounter.textContent = `${String(idx + 1).padStart(2, '0')} / ${String(sources.length).padStart(2, '0')}`;
+  }
+
+  function open(i) {
+    idx = (i + sources.length) % sources.length;
+    current.src = sources[idx].src;
+    current.alt = sources[idx].alt || '';
+    setCounter();
+    lb.classList.add('open');
+    if (window.gsap) {
+      gsap.set(lb, { opacity: 0 });
+      gsap.to(lb, { opacity: 1, duration: 0.3 });
+      gsap.fromTo(current, { scale: 0.94, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.45, ease: 'power3.out' });
+    }
+    if (lenis) lenis.stop();
+    document.body.style.overflow = 'hidden';
+  }
+
+  function close() {
+    if (window.gsap) {
+      gsap.to(lb, { opacity: 0, duration: 0.25, onComplete: () => lb.classList.remove('open') });
+    } else {
+      lb.classList.remove('open');
+    }
+    if (lenis) lenis.start();
+    document.body.style.overflow = '';
+  }
+
+  // Transition: cross-fade between current <img> and an incoming one — NO lightbox opacity flicker
+  let transitioning = false;
+  function navigate(delta) {
+    if (transitioning) return;
+    const next = (idx + delta + sources.length) % sources.length;
+    if (next === idx) return;
+    transitioning = true;
+
+    incoming = document.createElement('img');
+    incoming.src = sources[next].src;
+    incoming.alt = sources[next].alt || '';
+    stage.appendChild(incoming);
+
+    idx = next;
+    setCounter();
+
+    if (window.gsap) {
+      gsap.set(incoming, { opacity: 0, x: delta > 0 ? 40 : -40, scale: 0.97 });
+      gsap.to(current, { opacity: 0, x: delta > 0 ? -40 : 40, duration: 0.35, ease: 'power2.inOut' });
+      gsap.to(incoming, {
+        opacity: 1, x: 0, scale: 1, duration: 0.4, ease: 'power3.out',
+        onComplete: () => {
+          if (current.parentNode) current.parentNode.removeChild(current);
+          current = incoming;
+          transitioning = false;
+        }
+      });
+    } else {
+      if (current.parentNode) current.parentNode.removeChild(current);
+      current = incoming;
+      transitioning = false;
+    }
+  }
+
+  triggers.forEach((el, i) => {
+    el.addEventListener('click', e => {
+      e.preventDefault();
+      open(i);
+    });
+  });
+  lbClose.addEventListener('click', close);
+  lbPrev.addEventListener('click', () => navigate(-1));
+  lbNext.addEventListener('click', () => navigate(1));
+  lb.addEventListener('click', e => {
+    if (e.target === lb || e.target === stage) close();
+  });
+  document.addEventListener('keydown', e => {
+    if (!lb.classList.contains('open')) return;
+    if (e.key === 'Escape') close();
+    else if (e.key === 'ArrowLeft')  navigate(-1);
+    else if (e.key === 'ArrowRight') navigate(1);
+  });
+
+  // Attach lb-image styles at runtime so we don't pollute the top of the CSS
+  const st = document.createElement('style');
+  st.textContent = `
+    .lb-image { max-width: 100%; max-height: 100%; object-fit: contain; box-shadow: 0 0 80px rgba(0,0,0,0.8); border-radius: 4px; position: absolute; will-change: transform, opacity; }
+  `;
+  document.head.appendChild(st);
+})();
+
+
+/* ════════════════════════════════════════════════════════════════════
+   KEYBOARD NAV (ignore when focused in inputs or lightbox)
+   ═══════════════════════════════════════════════════════════════════ */
+document.addEventListener('keydown', e => {
+  if (document.getElementById('lightbox').classList.contains('open')) return;
+  const tag = (e.target && e.target.tagName || '').toLowerCase();
+  if (tag === 'input' || tag === 'textarea' || e.target.isContentEditable) return;
+  const slides = [...document.querySelectorAll('.slide')];
+  const cur = slides.findIndex(s => {
+    const r = s.getBoundingClientRect();
+    return r.top <= window.innerHeight * 0.4 && r.bottom > window.innerHeight * 0.4;
+  });
+  let next = null;
+  if (e.key === 'ArrowDown' || e.key === 'PageDown') next = slides[Math.min(cur + 1, slides.length - 1)];
+  if (e.key === 'ArrowUp'   || e.key === 'PageUp')   next = slides[Math.max(cur - 1, 0)];
+  if (e.key === 'Home') next = slides[0];
+  if (e.key === 'End')  next = slides[slides.length - 1];
+  if (next) {
+    e.preventDefault();
+    if (lenis) lenis.scrollTo(next, { duration: 1.0 });
+    else if (window.gsap) gsap.to(window, { duration: 1.0, scrollTo: { y: next, offsetY: 0 }, ease: 'power3.inOut' });
+    else next.scrollIntoView({ behavior: 'smooth' });
+  }
+});
+
+
+/* ════════════════════════════════════════════════════════════════════
+   RELAYOUT on image load
+   ═══════════════════════════════════════════════════════════════════ */
+window.addEventListener('load', () => {
+  if (window.ScrollTrigger) ScrollTrigger.refresh();
+});
+document.querySelectorAll('img').forEach(img => {
+  img.addEventListener('load', () => {
+    if (window.ScrollTrigger) ScrollTrigger.refresh();
+  }, { once: true });
+});
+</script>
+
+</body>
+</html>
